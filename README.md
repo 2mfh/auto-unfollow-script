@@ -25,18 +25,33 @@ Gunakan script ini hanya untuk akun pribadi dan dengan risiko Anda sendiri. Mela
     function delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
-    
-    function randomDelay(base = 1000, variance = 500) {
-        return base + Math.floor(Math.random() * variance);
+    function randomDelay(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
     let stop = false;
     let unfollowedCount = 0;
     let batchCount = 0;
-    const maxPerBatch = 10; // berhenti sementara setiap 10 unfollow
-    const pauseDuration = 60 * 1000; // 1 menit
+    const maxPerBatch = 10; // istirahat setiap 10 akun
+    const pauseDuration = () => randomDelay(60_000, 120_000); // 1–2 menit
 
-    console.log("🚀 Mulai unfollow massal... Pastikan kamu ada di halaman 'following'.");
+    console.log("🚀 Mulai unfollow massal mode AMAN + Bisa Tab-switch...");
+
+    async function clickConfirmButton() {
+        for (let i = 0; i < 50; i++) { // max 5 detik polling
+            const confirmBtn = [...document.querySelectorAll('button')]
+                .find(b => /Unfollow|Berhenti mengikuti|Batal mengikuti/i.test(b.innerText.trim()));
+            if (confirmBtn) {
+                confirmBtn.click();
+                unfollowedCount++;
+                console.log(`❌ Unfollow ke-${unfollowedCount}`);
+                return true;
+            }
+            await delay(100); // cek setiap 100ms
+        }
+        console.warn("⚠ Tombol konfirmasi tidak ditemukan, lanjut akun berikutnya.");
+        return false;
+    }
 
     while (!stop) {
         let buttons = [...document.querySelectorAll('button')]
@@ -51,37 +66,26 @@ Gunakan script ini hanya untuk akun pribadi dan dengan risiko Anda sendiri. Mela
         for (let btn of buttons) {
             try {
                 btn.scrollIntoView({ behavior: "smooth", block: "center" });
-                await delay(randomDelay(800, 400));
+                await delay(randomDelay(800, 1500));
                 btn.click();
-                await delay(randomDelay(800, 400));
 
-                let confirmBtn = [...document.querySelectorAll('button')]
-                    .find(b => /Unfollow|Berhenti mengikuti/i.test(b.innerText.trim()));
-                
-                if (confirmBtn) {
-                    confirmBtn.click();
-                    unfollowedCount++;
-                    batchCount++;
-                    console.log(`❌ Unfollow ke-${unfollowedCount}`);
+                await clickConfirmButton();
+                await delay(randomDelay(2000, 5000)); // jeda antar unfollow
 
-                    // pause kalau sudah batch limit
-                    if (batchCount >= maxPerBatch) {
-                        console.log(`⏸ Istirahat ${pauseDuration / 1000} detik untuk menghindari limit...`);
-                        batchCount = 0;
-                        await delay(pauseDuration);
-                    }
-                    await delay(randomDelay(2000, 1000));
+                batchCount++;
+                if (batchCount >= maxPerBatch) {
+                    let pauseTime = pauseDuration();
+                    console.log(`⏸ Istirahat ${pauseTime / 1000} detik untuk menghindari limit...`);
+                    await delay(pauseTime);
+                    batchCount = 0;
                 }
             } catch (err) {
                 console.warn("⚠ Gagal unfollow:", err);
             }
         }
 
-        window.scrollBy({
-            top: 1000,
-            behavior: "smooth"
-        });
-        await delay(randomDelay(2000, 1000));
+        window.scrollBy({ top: 1200, behavior: "smooth" });
+        await delay(randomDelay(2000, 4000));
     }
 
     console.log(`🎯 Total akun di-unfollow: ${unfollowedCount}`);
